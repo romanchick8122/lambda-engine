@@ -9,4 +9,11 @@
 }
 #settings {
     height: 35vh;
+    padding: 5px;
+}
+button {
+    width: 150px;
+}
+.fieldBox {
+    width: 160px;
 }

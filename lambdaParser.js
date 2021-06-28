@@ -317,7 +317,7 @@ function applyNormalOrderReduction(term) {
 }
 //reduces the term to its normal form. Does not change the term itself. Use limit=-1 for unlimited execution;
 //Throws LimitExceededError if solution is not found in limit operations;
-function findNormalForm(term, limit=-1) {
+function findNormalForm(term, limit=-1, intermediate=x=>{}) {
     term = JSON.parse(JSON.stringify(term));
     for (var i = 0; i != limit; ++i) {
         var reduct = applyNormalOrderReduction(term);
@@ -325,6 +325,7 @@ function findNormalForm(term, limit=-1) {
         if (!reduct[1]) {
             return term;
         }
+        intermediate(getRepr(term))
     }
     throw new LimitExceededError();
 }
