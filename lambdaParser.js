@@ -81,6 +81,18 @@ function createApplication(term1_, term2_) {
         term2: term2_
     }
 }
+function isBound(term) {
+    return term.type == "bound";
+}
+function isFree(term) {
+    return term.type == "free";
+}
+function isAbstraction(term) {
+    return term.type == "abstract";
+}
+function isApplication(term) {
+    return term.type == "apply";
+}
 
 function parseLambda(repr) {
     return parseTerm(repr, {}, {}, 0, 0);
@@ -192,4 +204,42 @@ function getTerms(repr, prefixLn) {
         throw new IllFormedEroor(repr.length + prefixLn);
     }
     return result;
+}
+
+var letterCheckRegExp = new RegExp(/^\p{L}$/u)
+function findNextChar(codeObj) {
+    var result;
+    do {
+        ++codeObj.code
+        result = String.fromCharCode(codeObj.code);
+    } while (!letterCheckRegExp.test(result))
+    return result;
+}
+function getRepr(term) {
+    return getRepr_(term, 0, {}, [], [], { code: 0});
+}
+function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, codeObj) {
+    if (isBound(term)) {
+        return boundVariables[currentDepth - term.depth];
+    } else if (isFree(term)) {
+        if (!(term.id in freeVariables)) {
+            freeVariables[term.id] = findNextChar(codeObj);
+        }
+        return freeVariables[term.id];
+    } else if (isAbstraction(term)) {
+        if (boundPool.length > 0) {
+            boundVariables[currentDepth] = boundPool.pop();
+        } else {
+            boundVariables[currentDepth] = findNextChar(codeObj);
+        }
+        ans = "(" + lambda + boundVariables[currentDepth] + ".";
+        ans += getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj) + ")";
+        boundPool.push(boundVariables[currentDepth]);
+        return ans;
+    } else if (isApplication(term)) {
+        return  "("
+            + getRepr_(term.term1, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
+            + getRepr_(term.term2, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
+            + ")";
+    }
 }
