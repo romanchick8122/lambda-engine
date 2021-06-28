@@ -256,22 +256,36 @@ function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, 
     }
 }
 
+function changeOuterDepth(term, currentDepth, changeBy) {
+    if (isBound(term)) {
+        if (term.depth > currentDepth) {
+            term.depth += changeBy;
+        }
+    } else if (isAbstraction(term)) {
+        changeOuterDepth(term.term, currentDepth + 1, changeBy);
+    } else if (isApplication(term)) {
+        changeOuterDepth(term.term1, currentDepth + 1, changeBy);
+        changeOuterDepth(term.term2, currentDepth + 1, changeBy);
+    }
+}
 //replaces instances of variable with term whoose JSON representation is substitution[0] (is array for fast passing)
-function substitute(term, currentDepth, variableDepth, substitution) {
+function substitute(term, currentDepth, substitution) {
     if (isFree(term)) {
         return term;
     } else if (isBound(term)) {
-        if (currentDepth - term.depth == variableDepth) {
-            return JSON.parse(substitution[0]);
+        if (currentDepth - term.depth == 0) {
+            var newTerm = JSON.parse(substitution[0]);
+            changeOuterDepth(newTerm, 0, currentDepth)
+            return newTerm;
         } else {
             return term;
         }
     } else if (isAbstraction(term)) {
-        term.term = substitute(term.term, currentDepth + 1, variableDepth, substitution);
+        term.term = substitute(term.term, currentDepth + 1, substitution);
         return term;
     } else if (isApplication(term)) {
-        term.term1 = substitute(term.term1, currentDepth + 1, variableDepth, substitution);
-        term.term2 = substitute(term.term2, currentDepth + 1, variableDepth, substitution);
+        term.term1 = substitute(term.term1, currentDepth + 1, substitution);
+        term.term2 = substitute(term.term2, currentDepth + 1, substitution);
         return term;
     }
 }
@@ -287,7 +301,9 @@ function applyNormalOrderReduction(term) {
         return [term, reduct[1]];
     } else if (isApplication(term)) {
         if (isAbstraction(term.term1)) {
-            return [substitute(term.term1.term, 1, 0, [JSON.stringify(term.term2)]), true]
+            var substituted = substitute(term.term1.term, 1, [JSON.stringify(term.term2)])
+            changeOuterDepth(substituted, 1, -2);
+            return [substituted, true]
         }
         var reduct1 = applyNormalOrderReduction(term.term1);
         term.term1 = reduct1[0];
