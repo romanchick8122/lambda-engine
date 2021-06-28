@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lambda engine</title>
+    <link href="main.css" type="text/css" rel="stylesheet">
+    <script src="lambdaParser.js"></script>
+</head>
+<body>
+    <div id="lambdaBlock">
+        <textarea id="lambdaBox" autofocus></textarea>
+    </div>
+    <div id="settings">
+        <div class="fieldBox">
+            <label for="limitField">Execution limit: </label><input type="number" step="1" min="-1" id="limitField"/>
+            <fieldset>
+                <legend>Normal form</legend>
+                <button id="betaReductionButton">Do one beta reduction</button><br/>
+                <button id="normalFormButton">Get normal form</button><br/>
+                <input type="checkbox" id="intermediateStepsBox"/>Intermediate steps<br/>
+            </fieldset>
+        </div>
+    </div>
+    <div id="footer">
+        (c) _romanchick_ 2021
+    </div>
+    <script src="UI.js"></script>
+</body>
+</html>
