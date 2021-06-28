@@ -179,7 +179,7 @@ function getTerms(repr, prefixLn) {
             throw new IllFormedEroor(i + prefixLn);
         }
         if (repr[i] == '(') {
-            if (depth != Infinity) {
+            if (depth == 0) {
                 prev = i + 1;
             }
             ++depth;
