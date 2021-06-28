@@ -37,6 +37,11 @@ Term obtained by application rule (AB) is represented with
 
 var lambda = "λ"
 
+class LimitExceededError extends Error {
+    constructor() {
+        super("Computation exceeded provided limits");
+    }
+}
 class ParserError extends Error {
     constructor(message, position) {
         super(message + " at symbol " + position);
@@ -277,20 +282,33 @@ function applyNormalOrderReduction(term) {
     } else if (isBound(term)) {
         return [term, false];
     } else if (isAbstraction(term)) {
-        var reduct = applyNormalFormReduction(term.term)
+        var reduct = applyNormalOrderReduction(term.term)
         term.term = reduct[0];
         return [term, reduct[1]];
     } else if (isApplication(term)) {
         if (isAbstraction(term.term1)) {
             return [substitute(term.term1.term, 1, 0, [JSON.stringify(term.term2)]), true]
         }
-        var reduct1 = applyNormalFormReduction(term.term1);
+        var reduct1 = applyNormalOrderReduction(term.term1);
         term.term1 = reduct1[0];
         if (reduct1[1]) {
             return [term, true];
         }
-        var reduct2 = applyNormalFormReduction(term.term2);
+        var reduct2 = applyNormalOrderReduction(term.term2);
         term.term2 = reduct2[0];
         return [term, reduct2[1]];
     }
+}
+//reduces the term to its normal form. Does not change the term itself. Use limit=-1 for unlimited execution;
+//Throws LimitExceededError if solution is not found in limit operations;
+function findNormalForm(term, limit=-1) {
+    term = JSON.parse(JSON.stringify(term));
+    for (var i = 0; i != limit; ++i) {
+        var reduct = applyNormalOrderReduction(term);
+        term = reduct[0];
+        if (!reduct[1]) {
+            return term;
+        }
+    }
+    throw new LimitExceededError();
 }
