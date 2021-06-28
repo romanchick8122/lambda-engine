@@ -6,6 +6,7 @@
     width: 100%;
     height: 100%;
     resize: none;
+    white-space: nowrap;
 }
 #settings {
     height: 35vh;
