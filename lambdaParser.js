@@ -232,14 +232,20 @@ function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, 
         } else {
             boundVariables[currentDepth] = findNextChar(codeObj);
         }
-        ans = "(" + lambda + boundVariables[currentDepth] + ".";
-        ans += getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj) + ")";
+        var repr = getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
+        if (isAbstraction(term.term)) {
+            repr = "(" + lambda + boundVariables[currentDepth] + repr.substring(2)
+        } else {
+            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr.substring(1, repr.length - 1) + ")";
+        }
         boundPool.push(boundVariables[currentDepth]);
-        return ans;
+        return repr;
     } else if (isApplication(term)) {
-        return  "("
-            + getRepr_(term.term1, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
-            + getRepr_(term.term2, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
-            + ")";
+        var repr1 = getRepr_(term.term1, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
+        var repr2 = getRepr_(term.term2, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
+        if (isApplication(term.term1)) {
+            repr1 = repr1.substring(1, repr1.length - 1);
+        }
+        return  "(" + repr1 + repr2 + ")";
     }
 }
