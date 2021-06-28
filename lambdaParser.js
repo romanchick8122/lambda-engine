@@ -34,6 +34,7 @@ Term obtained by application rule (AB) is represented with
     term2: B
 }
  */
+
 var lambda = "λ"
 
 class ParserError extends Error {
@@ -247,5 +248,49 @@ function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, 
             repr1 = repr1.substring(1, repr1.length - 1);
         }
         return  "(" + repr1 + repr2 + ")";
+    }
+}
+
+//replaces instances of variable with term whoose JSON representation is substitution[0] (is array for fast passing)
+function substitute(term, currentDepth, variableDepth, substitution) {
+    if (isFree(term)) {
+        return term;
+    } else if (isBound(term)) {
+        if (currentDepth - term.depth == variableDepth) {
+            return JSON.parse(substitution[0]);
+        } else {
+            return term;
+        }
+    } else if (isAbstraction(term)) {
+        term.term = substitute(term.term, currentDepth + 1, variableDepth, substitution);
+        return term;
+    } else if (isApplication(term)) {
+        term.term1 = substitute(term.term1, currentDepth + 1, variableDepth, substitution);
+        term.term2 = substitute(term.term2, currentDepth + 1, variableDepth, substitution);
+        return term;
+    }
+}
+//applies one normal order reduction and returns the result. Is destructive
+function applyNormalOrderReduction(term) {
+    if (isFree(term)) {
+        return [term, false];
+    } else if (isBound(term)) {
+        return [term, false];
+    } else if (isAbstraction(term)) {
+        var reduct = applyNormalFormReduction(term.term)
+        term.term = reduct[0];
+        return [term, reduct[1]];
+    } else if (isApplication(term)) {
+        if (isAbstraction(term.term1)) {
+            return [substitute(term.term1.term, 1, 0, [JSON.stringify(term.term2)]), true]
+        }
+        var reduct1 = applyNormalFormReduction(term.term1);
+        term.term1 = reduct1[0];
+        if (reduct1[1]) {
+            return [term, true];
+        }
+        var reduct2 = applyNormalFormReduction(term.term2);
+        term.term2 = reduct2[0];
+        return [term, reduct2[1]];
     }
 }
