@@ -21,7 +21,7 @@ function getTermFromBox() {
     return lambdaBox.value.split("\n").pop();
 }
 function addTerm(term) {
-    lambdaBox.value += "\n" + getRepr(ans[0])
+    lambdaBox.value += "\n" + getRepr(term)
 }
 
 betaReductionButton.addEventListener('click', e => {
@@ -32,8 +32,8 @@ betaReductionButton.addEventListener('click', e => {
     }
     addTerm(ans[0])
 })
-normalFormButton.addEventListener('click', e => {
+normalFormButton.addEventListener('click', async e => {
     var term = parseLambda(getTermFromBox());
-    findNormalForm(term, parseInt(limitField.value),
-        intermediateStepsBox.checked ? x => lambdaBox.value += "\n" + x : x => {}).then(addTerm)
+    addTerm(await findNormalForm(term, parseInt(limitField.value),
+        intermediateStepsBox.checked ? x => lambdaBox.value += "\n" + x : x => {}))
 })
