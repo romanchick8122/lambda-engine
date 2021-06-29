@@ -35,6 +35,16 @@ Term obtained by application rule (AB) is represented with
 }
  */
 
+function timeout(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+async function sleep(fn, ...args) {
+    await timeout(0);
+    return fn(...args);
+}
+
+var updateIterationsCount = 10000;
+
 var lambda = "λ"
 
 class LimitExceededError extends Error {
@@ -317,10 +327,15 @@ function applyNormalOrderReduction(term) {
 }
 //reduces the term to its normal form. Does not change the term itself. Use limit=-1 for unlimited execution;
 //Throws LimitExceededError if solution is not found in limit operations;
-function findNormalForm(term, limit=-1, intermediate=x=>{}) {
+async function findNormalForm(term, limit=-1, intermediate=x=>{}) {
     term = JSON.parse(JSON.stringify(term));
     for (var i = 0; i != limit; ++i) {
-        var reduct = applyNormalOrderReduction(term);
+        var reduct;
+        if (i % updateIterationsCount == 0) {
+            reduct = await sleep(applyNormalOrderReduction, term);
+        } else {
+            reduct = applyNormalOrderReduction(term)
+        }
         term = reduct[0];
         if (!reduct[1]) {
             return term;
