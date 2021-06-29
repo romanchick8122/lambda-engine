@@ -352,9 +352,26 @@ function applyNormalOrderReduction(term, context=defaultContext()) {
             term.term1 = JSON.parse(context[term.term1.name])
         }
         if (isAbstraction(term.term1)) {
-            var substituted = substitute(term.term1.term, 1, [JSON.stringify(term.term2)])
-            changeOuterDepth(substituted, 1, -2);
-            return [substituted, true]
+            //check if no-copy substitute should be performed
+            if (isFree(term.term1.term)) {
+                //ignoring with free variable
+                return [term.term1.term, true]
+            } else if (isBound(term.term1.term)) {
+                if (term.term1.term.depth == 1) {
+                    //non-copying substitution
+                    changeOuterDepth(term.term2, 0, -1);
+                    return [term.term2, true];
+                } else {
+                    //variable is bound, but free in subterm
+                    term.term1.term.depth -= 2;
+                    return [term.term1.term, true]
+                }
+            } else {
+                //performing copying substitution
+                var substituted = substitute(term.term1.term, 1, [JSON.stringify(term.term2)])
+                changeOuterDepth(substituted, 1, -2);
+                return [substituted, true]
+            }
         }
         var reduct1 = applyNormalOrderReduction(term.term1, context);
         term.term1 = reduct1[0];
