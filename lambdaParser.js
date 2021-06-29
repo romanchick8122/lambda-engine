@@ -42,7 +42,7 @@ Named term would be represented with
     type: "named"
     name: <name>
 }
-Substitution is treated as beta reduction in most cases
+Substitution is not beta reduction
  */
 
 function timeout(ms) {
@@ -177,7 +177,7 @@ function parseTerm(repr, boundMapping, freeMapping, currentDepth, prefixLn) {
     }
     //term is named
     else if ((repr.match(/"/g) || []).length == 2 && repr[0] == '"' && repr[repr.length - 1] == '"') {
-        return createNamed(repr.substring(1, repr.length - 2));
+        return createNamed(repr.substring(1, repr.length - 1));
     }
     //term is application
     else {
@@ -293,6 +293,8 @@ function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, 
             repr1 = repr1.substring(1, repr1.length - 1);
         }
         return  "(" + repr1 + repr2 + ")";
+    } else if (isNamed(term)) {
+        return '"' + term.name + '"';
     }
 }
 
@@ -327,44 +329,56 @@ function substitute(term, currentDepth, substitution) {
         term.term1 = substitute(term.term1, currentDepth + 1, substitution);
         term.term2 = substitute(term.term2, currentDepth + 1, substitution);
         return term;
+    } else if (isNamed(term)) {
+        return term;
     }
 }
 //applies one normal order reduction and returns the result. Is destructive
-function applyNormalOrderReduction(term) {
+function applyNormalOrderReduction(term, context=defaultContext()) {
     if (isFree(term)) {
         return [term, false];
     } else if (isBound(term)) {
         return [term, false];
     } else if (isAbstraction(term)) {
-        var reduct = applyNormalOrderReduction(term.term)
+        var reduct = applyNormalOrderReduction(term.term, context)
         term.term = reduct[0];
         return [term, reduct[1]];
     } else if (isApplication(term)) {
+        //substitute if it can be used for reduction
+        if (isNamed(term.term1) && term.term1.name in context) {
+            term.term1 = JSON.parse(context[term.term1.name])
+        }
         if (isAbstraction(term.term1)) {
             var substituted = substitute(term.term1.term, 1, [JSON.stringify(term.term2)])
             changeOuterDepth(substituted, 1, -2);
             return [substituted, true]
         }
-        var reduct1 = applyNormalOrderReduction(term.term1);
+        var reduct1 = applyNormalOrderReduction(term.term1, context);
         term.term1 = reduct1[0];
         if (reduct1[1]) {
             return [term, true];
         }
-        var reduct2 = applyNormalOrderReduction(term.term2);
+        var reduct2 = applyNormalOrderReduction(term.term2, context);
         term.term2 = reduct2[0];
         return [term, reduct2[1]];
+    } else if (isNamed(term)) {
+        if (term.name in context) {
+            return [JSON.parse(context[term.name]), false];
+        } else {
+            return [term, false];
+        }
     }
 }
 //reduces the term to its normal form. Does not change the term itself. Use limit=-1 for unlimited execution;
 //Throws LimitExceededError if solution is not found in limit operations;
-async function findNormalForm(term, limit=-1, intermediate=x=>{}) {
+async function findNormalForm(term, limit=-1, intermediate=x=>{}, context=defaultContext()) {
     term = JSON.parse(JSON.stringify(term));
     for (var i = 0; i != limit; ++i) {
         var reduct;
         if (i % updateIterationsCount == 0) {
-            reduct = await sleep(applyNormalOrderReduction, term);
+            reduct = await sleep(applyNormalOrderReduction, term, context);
         } else {
-            reduct = applyNormalOrderReduction(term)
+            reduct = applyNormalOrderReduction(term, context)
         }
         term = reduct[0];
         if (!reduct[1]) {
