@@ -6,6 +6,10 @@ if A and B are terms, term λx.(AB) can be expressed with λx.AB
 
 e.g.
 λxy.x(λz.y)x would be parsed as λx.(λy.((x(λz.y))x))
+
+if A is term line ":<name>=A" would define <name> to mean term A. Term A should be combinator, otherwise behaviour is
+unspecified. Whenever in term appears <name> in double quotes ("<name>") it would be replaced with A
+(may apply alpha conversions).
  */
 
 /*
@@ -33,6 +37,12 @@ Term obtained by application rule (AB) is represented with
     term1: A,
     term2: B
 }
+Named term would be represented with
+{
+    type: "named"
+    name: <name>
+}
+Substitution is treated as beta reduction in most cases
  */
 
 function timeout(ms) {
@@ -97,6 +107,12 @@ function createApplication(term1_, term2_) {
         term2: term2_
     }
 }
+function createNamed(name_) {
+    return {
+        type: "named",
+        name: name_
+    }
+}
 function isBound(term) {
     return term.type == "bound";
 }
@@ -108,6 +124,9 @@ function isAbstraction(term) {
 }
 function isApplication(term) {
     return term.type == "apply";
+}
+function isNamed(term) {
+    return term.type == "named"
 }
 
 function parseLambda(repr) {
@@ -156,6 +175,10 @@ function parseTerm(repr, boundMapping, freeMapping, currentDepth, prefixLn) {
         }
         return subterm;
     }
+    //term is named
+    else if ((repr.match(/"/g) || []).length == 2 && repr[0] == '"' && repr[repr.length - 1] == '"') {
+        return createNamed(repr.substring(1, repr.length - 2));
+    }
     //term is application
     else {
         var subterms = getTerms(repr, prefixLn)
@@ -180,7 +203,7 @@ function parseTerm(repr, boundMapping, freeMapping, currentDepth, prefixLn) {
 }
 //Separates string representation of series of applications to individual terms as pairs (term, position)
 function getTerms(repr, prefixLn) {
-    result = [];
+    var result = [];
     var prev = 0;
     var depth = 0;
     var trailingLambda = false;
@@ -205,6 +228,14 @@ function getTerms(repr, prefixLn) {
                 prev = i
                 depth = Infinity
             }
+        } else if (repr[i] == '"') {
+            if (depth == 0) {
+                prev = i;
+                depth = Infinity
+            } else if (depth == Infinity) {
+                result.push([repr.substring(prev, i + 1), prev]);
+                depth = 0
+            }
         } else {
             if (depth == 0) {
                 result.push([repr.substring(prev, i + 1), prev]);
@@ -222,13 +253,12 @@ function getTerms(repr, prefixLn) {
     return result;
 }
 
-var letterCheckRegExp = new RegExp(/^\p{L}$/u)
 function findNextChar(codeObj) {
     var result;
     do {
         ++codeObj.code
         result = String.fromCharCode(codeObj.code);
-    } while (!letterCheckRegExp.test(result))
+    } while (!/^\p{L}$/u.test(result))
     return result;
 }
 function getRepr(term) {
