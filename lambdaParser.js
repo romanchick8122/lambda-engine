@@ -235,6 +235,7 @@ function getTerms(repr, prefixLn) {
             } else if (depth == Infinity) {
                 result.push([repr.substring(prev, i + 1), prev]);
                 depth = 0
+                prev = i + 1
             }
         } else {
             if (depth == 0) {
@@ -281,6 +282,8 @@ function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, 
         var repr = getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
         if (isAbstraction(term.term)) {
             repr = "(" + lambda + boundVariables[currentDepth] + repr.substring(2)
+        } else if (isNamed(term.term)) {
+            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr + ")"
         } else {
             repr = "(" + lambda + boundVariables[currentDepth] + "." + repr.substring(1, repr.length - 1) + ")";
         }
