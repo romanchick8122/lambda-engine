@@ -129,6 +129,31 @@ function isNamed(term) {
     return term.t == "n"
 }
 
+function termEqual(term1, term2) {
+    if (term1.t != term2.t) {
+        return false;
+    }
+    if (isAbstraction(term1)) {
+        return termEqual(term1.term, term2.term);
+    } else if (isApplication(term1)) {
+        return termEqual(term1.term1, term2.term1) && termEqual(term1.term2, term2.term2);
+    } else if (isBound(term1)) {
+        return term1.depth == term2.depth
+    } else if (isFree(term1)) {
+        return term1.id == term2.id
+    } else if (isNamed(term1)) {
+        return term1.name == term2.name
+    }
+}
+function lookupTerm(term, termMapping) {
+    for (var i = termMapping.length - 1; i >= 0; --i) {
+        if (termEqual(term, termMapping[i][1])) {
+            return termMapping[i][0]
+        }
+    }
+    return null;
+}
+
 function parseLambda(repr) {
     return parseTerm(repr, {}, {}, 0, 0);
 }
@@ -262,42 +287,47 @@ function findNextChar(codeObj) {
     } while (!/^\p{L}$/u.test(result))
     return result;
 }
-function getRepr(term) {
-    return getRepr_(term, 0, {}, [], [], { code: 0});
+function getRepr(term, termMapping = defaultTermMapping()) {
+    return getRepr_(term, 0, {}, [], [], { code: 0}, termMapping)[0];
 }
-function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, codeObj) {
+function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, codeObj, termMapping) {
     if (isBound(term)) {
-        return boundVariables[currentDepth - term.depth];
+        return [boundVariables[currentDepth - term.depth], false];
     } else if (isFree(term)) {
         if (!(term.id in freeVariables)) {
             freeVariables[term.id] = findNextChar(codeObj);
         }
-        return freeVariables[term.id];
-    } else if (isAbstraction(term)) {
+        return [freeVariables[term.id], false];
+    };
+    var lookup = lookupTerm(term, termMapping);
+    if (lookup != null) {
+        return ['"' + lookup + '"', true]
+    }
+    if (isAbstraction(term)) {
         if (boundPool.length > 0) {
             boundVariables[currentDepth] = boundPool.pop();
         } else {
             boundVariables[currentDepth] = findNextChar(codeObj);
         }
-        var repr = getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
-        if (isAbstraction(term.term)) {
-            repr = "(" + lambda + boundVariables[currentDepth] + repr.substring(2)
-        } else if (isNamed(term.term)) {
-            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr + ")"
+        var repr = getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj, termMapping)
+        if (isAbstraction(term.term) && !repr[1]) {
+            repr = "(" + lambda + boundVariables[currentDepth] + repr[0].substring(2)
+        } else if (isNamed(term.term) || repr[1]) {
+            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr[0] + ")"
         } else {
-            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr.substring(1, repr.length - 1) + ")";
+            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr[0].substring(1, repr[0].length - 1) + ")";
         }
         boundPool.push(boundVariables[currentDepth]);
-        return repr;
+        return [repr, false];
     } else if (isApplication(term)) {
-        var repr1 = getRepr_(term.term1, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
-        var repr2 = getRepr_(term.term2, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
+        var repr1 = getRepr_(term.term1, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj, termMapping)[0]
+        var repr2 = getRepr_(term.term2, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj, termMapping)[0]
         if (isApplication(term.term1)) {
             repr1 = repr1.substring(1, repr1.length - 1);
         }
-        return  "(" + repr1 + repr2 + ")";
+        return ["(" + repr1 + repr2 + ")", false];
     } else if (isNamed(term)) {
-        return '"' + term.name + '"';
+        return ['"' + term.name + '"', false];
     }
 }
 
@@ -383,7 +413,8 @@ function applyNormalOrderReduction(term, context=defaultContext()) {
         return [term, reduct2[1]];
     } else if (isNamed(term)) {
         if (term.name in context) {
-            return [JSON.parse(context[term.name]), false];
+            var reduct = applyNormalOrderReduction(JSON.parse(context[term.name]), context)
+            return [reduct[0], reduct[1]];
         } else {
             return [term, false];
         }
