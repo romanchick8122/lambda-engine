@@ -47,6 +47,6 @@ betaReductionButton.addEventListener('click', e => {
 normalFormButton.addEventListener('click', async e => {
     var term = parseLambda(getTermFromBox());
     addTerm(await findNormalForm(term, parseInt(limitField.value),
-        intermediateStepsBox.checked ? x => lambdaBox.value += "\n" + x : x => {}, getContextFromBox()))
+        intermediateStepsBox.checked ? x => lambdaBox.value += "\n" + getRepr(x) : x => {}, getContextFromBox()))
     lambdaBox.scrollTop = lambdaBox.scrollHeight;
 })

@@ -84,49 +84,49 @@ class DoubleAbstractionError extends ParserError {
 
 function createBound(depth_) {
     return {
-        type: "bound",
+        t: "b",
         depth: depth_
     }
 }
 function createFree(id_) {
     return {
-        type: "free",
+        t: "f",
         id: id_
     }
 }
 function createAbstraction(term_) {
     return {
-        type: "abstract",
+        t: "l",
         term: term_
     }
 }
 function createApplication(term1_, term2_) {
     return {
-        type: "apply",
+        t: "a",
         term1: term1_,
         term2: term2_
     }
 }
 function createNamed(name_) {
     return {
-        type: "named",
+        t: "n",
         name: name_
     }
 }
 function isBound(term) {
-    return term.type == "bound";
+    return term.t == "b";
 }
 function isFree(term) {
-    return term.type == "free";
+    return term.t == "f";
 }
 function isAbstraction(term) {
-    return term.type == "abstract";
+    return term.t == "l";
 }
 function isApplication(term) {
-    return term.type == "apply";
+    return term.t == "a";
 }
 function isNamed(term) {
-    return term.type == "named"
+    return term.t == "n"
 }
 
 function parseLambda(repr) {
@@ -404,7 +404,7 @@ async function findNormalForm(term, limit=-1, intermediate=x=>{}, context=defaul
         if (!reduct[1]) {
             return term;
         }
-        intermediate(getRepr(term))
+        intermediate(term)
     }
     throw new LimitExceededError();
 }
