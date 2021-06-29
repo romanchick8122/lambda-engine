@@ -6,6 +6,10 @@ if A and B are terms, term λx.(AB) can be expressed with λx.AB
 
 e.g.
 λxy.x(λz.y)x would be parsed as λx.(λy.((x(λz.y))x))
+
+if A is term line ":<name>=A" would define <name> to mean term A. Term A should be combinator, otherwise behaviour is
+unspecified. Whenever in term appears <name> in double quotes ("<name>") it would be replaced with A
+(may apply alpha conversions).
  */
 
 /*
@@ -33,6 +37,12 @@ Term obtained by application rule (AB) is represented with
     term1: A,
     term2: B
 }
+Named term would be represented with
+{
+    type: "named"
+    name: <name>
+}
+Substitution is not beta reduction
  */
 
 function timeout(ms) {
@@ -74,40 +84,74 @@ class DoubleAbstractionError extends ParserError {
 
 function createBound(depth_) {
     return {
-        type: "bound",
+        t: "b",
         depth: depth_
     }
 }
 function createFree(id_) {
     return {
-        type: "free",
+        t: "f",
         id: id_
     }
 }
 function createAbstraction(term_) {
     return {
-        type: "abstract",
+        t: "l",
         term: term_
     }
 }
 function createApplication(term1_, term2_) {
     return {
-        type: "apply",
+        t: "a",
         term1: term1_,
         term2: term2_
     }
 }
+function createNamed(name_) {
+    return {
+        t: "n",
+        name: name_
+    }
+}
 function isBound(term) {
-    return term.type == "bound";
+    return term.t == "b";
 }
 function isFree(term) {
-    return term.type == "free";
+    return term.t == "f";
 }
 function isAbstraction(term) {
-    return term.type == "abstract";
+    return term.t == "l";
 }
 function isApplication(term) {
-    return term.type == "apply";
+    return term.t == "a";
+}
+function isNamed(term) {
+    return term.t == "n"
+}
+
+function termEqual(term1, term2) {
+    if (term1.t != term2.t) {
+        return false;
+    }
+    if (isAbstraction(term1)) {
+        return termEqual(term1.term, term2.term);
+    } else if (isApplication(term1)) {
+        return termEqual(term1.term1, term2.term1) && termEqual(term1.term2, term2.term2);
+    } else if (isBound(term1)) {
+        return term1.depth == term2.depth
+    } else if (isFree(term1)) {
+        return term1.id == term2.id
+    } else if (isNamed(term1)) {
+        return term1.name == term2.name
+    }
+}
+function lookupTerm(term, termMapping) {
+    for (var i = termMapping.length - 1; i >= 0; --i) {
+        if (termEqual(term, termMapping[i][1])) {
+            return termMapping[i][0]
+        }
+    }
+    return null;
 }
 
 function parseLambda(repr) {
@@ -156,6 +200,10 @@ function parseTerm(repr, boundMapping, freeMapping, currentDepth, prefixLn) {
         }
         return subterm;
     }
+    //term is named
+    else if ((repr.match(/"/g) || []).length == 2 && repr[0] == '"' && repr[repr.length - 1] == '"') {
+        return createNamed(repr.substring(1, repr.length - 1));
+    }
     //term is application
     else {
         var subterms = getTerms(repr, prefixLn)
@@ -180,7 +228,7 @@ function parseTerm(repr, boundMapping, freeMapping, currentDepth, prefixLn) {
 }
 //Separates string representation of series of applications to individual terms as pairs (term, position)
 function getTerms(repr, prefixLn) {
-    result = [];
+    var result = [];
     var prev = 0;
     var depth = 0;
     var trailingLambda = false;
@@ -205,6 +253,15 @@ function getTerms(repr, prefixLn) {
                 prev = i
                 depth = Infinity
             }
+        } else if (repr[i] == '"') {
+            if (depth == 0) {
+                prev = i;
+                depth = Infinity
+            } else if (depth == Infinity) {
+                result.push([repr.substring(prev, i + 1), prev]);
+                depth = 0
+                prev = i + 1
+            }
         } else {
             if (depth == 0) {
                 result.push([repr.substring(prev, i + 1), prev]);
@@ -222,47 +279,55 @@ function getTerms(repr, prefixLn) {
     return result;
 }
 
-var letterCheckRegExp = new RegExp(/^\p{L}$/u)
 function findNextChar(codeObj) {
     var result;
     do {
         ++codeObj.code
         result = String.fromCharCode(codeObj.code);
-    } while (!letterCheckRegExp.test(result))
+    } while (!/^\p{L}$/u.test(result))
     return result;
 }
-function getRepr(term) {
-    return getRepr_(term, 0, {}, [], [], { code: 0});
+function getRepr(term, termMapping = defaultTermMapping()) {
+    return getRepr_(term, 0, {}, [], [], { code: 0}, termMapping)[0];
 }
-function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, codeObj) {
+function getRepr_(term, currentDepth, freeVariables, boundVariables, boundPool, codeObj, termMapping) {
     if (isBound(term)) {
-        return boundVariables[currentDepth - term.depth];
+        return [boundVariables[currentDepth - term.depth], false];
     } else if (isFree(term)) {
         if (!(term.id in freeVariables)) {
             freeVariables[term.id] = findNextChar(codeObj);
         }
-        return freeVariables[term.id];
-    } else if (isAbstraction(term)) {
+        return [freeVariables[term.id], false];
+    };
+    var lookup = lookupTerm(term, termMapping);
+    if (lookup != null) {
+        return ['"' + lookup + '"', true]
+    }
+    if (isAbstraction(term)) {
         if (boundPool.length > 0) {
             boundVariables[currentDepth] = boundPool.pop();
         } else {
             boundVariables[currentDepth] = findNextChar(codeObj);
         }
-        var repr = getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
-        if (isAbstraction(term.term)) {
-            repr = "(" + lambda + boundVariables[currentDepth] + repr.substring(2)
+        var repr = getRepr_(term.term, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj, termMapping)
+        if (isAbstraction(term.term) && !repr[1]) {
+            repr = "(" + lambda + boundVariables[currentDepth] + repr[0].substring(2)
+        } else if (isNamed(term.term) || repr[1]) {
+            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr[0] + ")"
         } else {
-            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr.substring(1, repr.length - 1) + ")";
+            repr = "(" + lambda + boundVariables[currentDepth] + "." + repr[0].substring(1, repr[0].length - 1) + ")";
         }
         boundPool.push(boundVariables[currentDepth]);
-        return repr;
+        return [repr, false];
     } else if (isApplication(term)) {
-        var repr1 = getRepr_(term.term1, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
-        var repr2 = getRepr_(term.term2, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj)
+        var repr1 = getRepr_(term.term1, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj, termMapping)[0]
+        var repr2 = getRepr_(term.term2, currentDepth + 1, freeVariables, boundVariables, boundPool, codeObj, termMapping)[0]
         if (isApplication(term.term1)) {
             repr1 = repr1.substring(1, repr1.length - 1);
         }
-        return  "(" + repr1 + repr2 + ")";
+        return ["(" + repr1 + repr2 + ")", false];
+    } else if (isNamed(term)) {
+        return ['"' + term.name + '"', false];
     }
 }
 
@@ -297,50 +362,80 @@ function substitute(term, currentDepth, substitution) {
         term.term1 = substitute(term.term1, currentDepth + 1, substitution);
         term.term2 = substitute(term.term2, currentDepth + 1, substitution);
         return term;
+    } else if (isNamed(term)) {
+        return term;
     }
 }
 //applies one normal order reduction and returns the result. Is destructive
-function applyNormalOrderReduction(term) {
+function applyNormalOrderReduction(term, context=defaultContext()) {
     if (isFree(term)) {
         return [term, false];
     } else if (isBound(term)) {
         return [term, false];
     } else if (isAbstraction(term)) {
-        var reduct = applyNormalOrderReduction(term.term)
+        var reduct = applyNormalOrderReduction(term.term, context)
         term.term = reduct[0];
         return [term, reduct[1]];
     } else if (isApplication(term)) {
-        if (isAbstraction(term.term1)) {
-            var substituted = substitute(term.term1.term, 1, [JSON.stringify(term.term2)])
-            changeOuterDepth(substituted, 1, -2);
-            return [substituted, true]
+        //substitute if it can be used for reduction
+        if (isNamed(term.term1) && term.term1.name in context) {
+            term.term1 = JSON.parse(context[term.term1.name])
         }
-        var reduct1 = applyNormalOrderReduction(term.term1);
+        if (isAbstraction(term.term1)) {
+            //check if no-copy substitute should be performed
+            if (isFree(term.term1.term)) {
+                //ignoring with free variable
+                return [term.term1.term, true]
+            } else if (isBound(term.term1.term)) {
+                if (term.term1.term.depth == 1) {
+                    //non-copying substitution
+                    changeOuterDepth(term.term2, 0, -1);
+                    return [term.term2, true];
+                } else {
+                    //variable is bound, but free in subterm
+                    term.term1.term.depth -= 2;
+                    return [term.term1.term, true]
+                }
+            } else {
+                //performing copying substitution
+                var substituted = substitute(term.term1.term, 1, [JSON.stringify(term.term2)])
+                changeOuterDepth(substituted, 1, -2);
+                return [substituted, true]
+            }
+        }
+        var reduct1 = applyNormalOrderReduction(term.term1, context);
         term.term1 = reduct1[0];
         if (reduct1[1]) {
             return [term, true];
         }
-        var reduct2 = applyNormalOrderReduction(term.term2);
+        var reduct2 = applyNormalOrderReduction(term.term2, context);
         term.term2 = reduct2[0];
         return [term, reduct2[1]];
+    } else if (isNamed(term)) {
+        if (term.name in context) {
+            var reduct = applyNormalOrderReduction(JSON.parse(context[term.name]), context)
+            return [reduct[0], reduct[1]];
+        } else {
+            return [term, false];
+        }
     }
 }
 //reduces the term to its normal form. Does not change the term itself. Use limit=-1 for unlimited execution;
 //Throws LimitExceededError if solution is not found in limit operations;
-async function findNormalForm(term, limit=-1, intermediate=x=>{}) {
+async function findNormalForm(term, limit=-1, intermediate=x=>{}, context=defaultContext()) {
     term = JSON.parse(JSON.stringify(term));
     for (var i = 0; i != limit; ++i) {
         var reduct;
         if (i % updateIterationsCount == 0) {
-            reduct = await sleep(applyNormalOrderReduction, term);
+            reduct = await sleep(applyNormalOrderReduction, term, context);
         } else {
-            reduct = applyNormalOrderReduction(term)
+            reduct = applyNormalOrderReduction(term, context)
         }
         term = reduct[0];
         if (!reduct[1]) {
             return term;
         }
-        intermediate(getRepr(term))
+        intermediate(term)
     }
     throw new LimitExceededError();
 }

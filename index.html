@@ -5,6 +5,7 @@
     <title>Lambda engine</title>
     <link href="main.css" type="text/css" rel="stylesheet">
     <script src="lambdaParser.js"></script>
+    <script src="context.js"></script>
 </head>
 <body>
     <div id="lambdaBlock">
@@ -17,8 +18,11 @@
                 <legend>Normal form</legend>
                 <button id="betaReductionButton">Do one beta reduction</button><br/>
                 <button id="normalFormButton">Get normal form</button><br/>
-                <input type="checkbox" id="intermediateStepsBox"/>Intermediate steps<br/>
+                <input type="checkbox" id="intermediateStepsBox"/>
+                    <label for="intermediateStepsBox">Intermediate steps</label><br/>
             </fieldset>
+            <input type="checkbox" id="namedOutputBox"/>
+                <label for="namedOutputBox">Named output</label><br/>
         </div>
     </div>
     <div id="footer">
