@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Help page</title>
+    <style>
+        code {
+            background: #DDD;
+            padding: 3px;
+            border-radius: 5px;
+            white-space: nowrap;
+        }
+        p {
+            text-align: justify;
+        }
+    </style>
+</head>
+<body>
+    <h1><a href="index.html">The engine itself</a></h1>
+    <h1>Table of contents</h1>
+    <ul>
+        <li><a href="#about">About</a></li>
+        <li>
+            <a href="#syntax">Syntax</a>
+            <ul>
+                <li><a href="#agreements">Agreements</a></li>
+                <li><a href="#subterms">Sub-terms</a></li>
+            </ul>
+        </li>
+        <li><a href="#execution">Execution</a></li>
+        <li>
+            <a href="#inputs">Inputs</a>
+            <ul>
+                <li><a href="#maininputbox">Main input box</a></li>
+                <li><a href="#executionlimit">Execution limit</a></li>
+                <li>
+                    <a href="#normalform">Normal form</a>
+                    <ul>
+                        <li><a href="#doonebetareduction">Do one beta reduction</a></li>
+                        <li><a href="#getnormalform">Get normal form</a></li>
+                        <li><a href="#intermediatesteps">Intermediate steps</a></li>
+                    </ul>
+                </li>
+                <li><a href="#namedoutput">Named output</a></li>
+            </ul>
+        </li>
+    </ul>
+    <h1 id="about">About</h1>
+    <p>This is a tool to work with <a href="https://en.wikipedia.org/wiki/Lambda_calculus">Lambda calculs</a>.
+    It was meant to be used mostly for academic purposes, reducing terms to their normal form, thus, being
+    interpreter in some sense</p>
+    <h1 id="syntax">Syntax</h1>
+    <p>The syntax we are using extends the default lambda calculus syntax to make expressions shorter removing
+        redundant symbols. Despite the changes any correct lambda term is also correct under our conditions.
+        <code>λ</code> is the symbol for abstraction.</p>
+    <h2 id="agreements">Agreements</h2>
+    <p>To simplify expressins we agree on when brackets can be skipped. The rules are as follows:</p>
+    <ul>
+        <li>If <code>A</code> and <code>B</code> are terms, and <code>x</code> is a variable,
+            then <code>λx.AB</code> is a term in this engine, and is equivalent to <code>(λx.(AB))</code> lambda
+            term</li>
+        <li>If <code>A</code>, <code>B</code> and <code>C</code> are terms, then <code>ABC</code> is a term in this
+            engine, and is equivalent to <code>(AB)C</code> lambda term</li>
+        <li>If <code>λx.(λy.A)</code> is a lambda term, then <code>λxy.A</code> is a term in this engine equivalent to
+            it</li>
+    </ul>
+    <h3>Example</h3>
+    <p>The term for church numerals addition would look like <code>λm.(λn.(λf.(λx.((mf)((nf)x)))))</code>, and can be
+        expressed with <code>λmnfx.mf(nfx)</code> in this engine, thus being significantly shorter and easier to type
+        and interpret by human.</p>
+    <h2 id="subterms">Sub-terms</h2>
+    <p>There is also a specific syntax to define sub-terms to be used in later expressions. If a line starts with
+        <code>!</code> symbol it is assumed a sub-term definition line.</p>
+    <p>Definition goes as follows:
+        <code>!name=term</code> where name is any character sequence not containing <code>=</code> symbol and term is
+        any correct term. In the following lines <code>"name"</code> would be replaced by <code>term</code>. Enough
+        alpha-conversions would be applied to make no variables conflict after substitution, thus any non-bound
+        variables would stau non-bound after substitution</p>
+    <p>For several reasons another syntax would be used. If term used for sub-term definition has beta-normal form,
+        one might use <code>!!</code> in the beginning of the line, instead of <code>!</code>. This would make engine
+        define normal form of the <code>term</code> ti this name, instead of the <code>term</code> itself. This
+        should not be used carelessly, because normal form computation of sub-terms is not limited by anything, and
+        would get stuck in infinite loop if term doesn't have normal form.</p>
+    <h1 id="execution">Execution</h1>
+    <p>Whenever a computation needs to be performed via user requirement, the following happens:</p>
+    <ol>
+        <li>Every line in the input box, except the last one and the ones that starts with <code>!</code> are
+            ignored</li>
+        <li>If the last line in the box is not a term, evaluation is aborted</li>
+        <li>For each line that starts with <code>!</code> symbol, starting from top to the bottom
+            <ol>
+                <li>Expression after the <code>=</code> symbol is parsed.</li>
+                <li>If expression is not a term, evaluation is aborted</li>
+                <li>If line starts with <code>!!</code> term is reduced to its normal form</li>
+                <li>The result is added to named mappings</li>
+            </ol>
+        </li>
+        <li>User-requested evaluation is performed on term represented by the last line in the input box</li>
+    </ol>
+    <p>Note that substitutions are done only when necessary. Sub-term with the given name being undefined is not an
+        error and would only cause term to be not substituted when it is required. Also not that any amount of
+        unnecessary alpha-conversions can be applied in any evaluation</p>
+    <h1 id="inputs">Inputs</h1>
+    <h2 id="maininputbox">Main input box</h2>
+    <p>Main input box is the box at the top of the screen, occupying most of it. It is used to input all terms and
+        sub-terms. For simplicity, you can use <code>Alt+L</code> to type in <code>λ</code> symbol.</p>
+    <h2 id="executionlimit">Execution limit</h2>
+    <p>The value in this box is the number of atomic operations that can be performed by user-requested evaluation
+        before it is aborted. Value of <code>-1</code> means unlimited evaluation</p>
+    <h2 id="normalform">Normal form</h2>
+    <p>This section is about user-requested evaluations that lead to normal form of the term</p>
+    <h3 id="doonebetareduction">Do one beta reduction</h3>
+    <p>This button reduces the term with only one normal-order beta-reduction, thus guaranteeing that if term has
+        normal form and button is clicked enough times the normal form would eventually be reached. The resulting term
+        would be appended to the main input box. If the term is already in normal form, the resulting term would be the
+        same as input</p>
+    <h3 id="getnormalform">Get normal form</h3>
+    <p>This button requests reducing the term to its beta-normal form. Terms normal form is appended to the main input
+        box</p>
+    <h3 id="intermediatesteps">Intermediate steps</h3>
+    <p>If this checkbox is checked, when term is reduced to normal form, the intermediate result would be appended to
+        the main input box after every beta-reduction applied. Checking this significantly reduces performance</p>
+    <h2 id="namedoutput">Named output</h2>
+    <p>Whenever this checkbox is checked, sub-terms would be replaced with their names whenever an output is appended to
+        the main input box. Only the terms that are exactly the same, or that can be converted to the sub-term with
+        only alpha conversions and adding and removing unnecessary brackets, defined by agreements, would be replaced
+        with the name</p>
+</body>
+</html>
